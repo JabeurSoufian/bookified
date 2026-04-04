@@ -18,13 +18,13 @@ export const getAllBooks = async (search?: string) => {
             const regex = new RegExp(escapedSearch, 'i');
             query = {
                 $or: [
-                    { title: { $regex: regex } },
-                    { author: { $regex: regex } },
+                    {title: {$regex: regex}},
+                    {author: {$regex: regex}},
                 ]
             };
         }
 
-        const books = await Book.find(query).sort({ createdAt: -1 }).lean();
+        const books = await Book.find(query).sort({createdAt: -1}).lean();
 
         return {
             success: true,
@@ -46,7 +46,7 @@ export const checkBookExists = async (title: string) => {
 
         const existingBook = await Book.findOne({slug}).lean();
 
-        if(existingBook) {
+        if (existingBook) {
             return {
                 exists: true,
                 book: serializeData(existingBook)
@@ -72,7 +72,7 @@ export const createBook = async (data: CreateBook) => {
 
         const existingBook = await Book.findOne({slug}).lean();
 
-        if(existingBook) {
+        if (existingBook) {
             return {
                 success: true,
                 data: serializeData(existingBook),
@@ -81,23 +81,23 @@ export const createBook = async (data: CreateBook) => {
         }
 
         // Todo: Check subscription limits before creating a book
-        const { getUserPlan } = await import("@/lib/subscription.server");
-        const { PLAN_LIMITS } = await import("@/lib/subscription-constants");
+        const {getUserPlan} = await import("@/lib/subscription.server");
+        const {PLAN_LIMITS} = await import("@/lib/subscription-constants");
 
-        const { auth } = await import("@clerk/nextjs/server");
-        const { userId } = await auth();
+        const {auth} = await import("@clerk/nextjs/server");
+        const {userId} = await auth();
 
         if (!userId || userId !== data.clerkId) {
-            return { success: false, error: "Unauthorized" };
+            return {success: false, error: "Unauthorized"};
         }
 
         const plan = await getUserPlan();
         const limits = PLAN_LIMITS[plan];
 
-        const bookCount = await Book.countDocuments({ clerkId: userId });
+        const bookCount = await Book.countDocuments({clerkId: userId});
 
         if (bookCount >= limits.maxBooks) {
-            const { revalidatePath } = await import("next/cache");
+            const {revalidatePath} = await import("next/cache");
             revalidatePath("/");
 
             return {
@@ -127,10 +127,10 @@ export const getBookBySlug = async (slug: string) => {
     try {
         await connectToDatabase();
 
-        const book = await Book.findOne({ slug }).lean();
+        const book = await Book.findOne({slug}).lean();
 
         if (!book) {
-            return { success: false, error: 'Book not found' };
+            return {success: false, error: 'Book not found'};
         }
 
         return {
@@ -151,19 +151,19 @@ export const saveBookSegments = async (bookId: string, clerkId: string, segments
 
         console.log('Saving book segments...');
 
-        const segmentsToInsert = segments.map(({ text, segmentIndex, pageNumber, wordCount }) => ({
+        const segmentsToInsert = segments.map(({text, segmentIndex, pageNumber, wordCount}) => ({
             clerkId, bookId, content: text, segmentIndex, pageNumber, wordCount
         }));
 
         await BookSegment.insertMany(segmentsToInsert);
 
-        await Book.findByIdAndUpdate(bookId, { totalSegments: segments.length });
+        await Book.findByIdAndUpdate(bookId, {totalSegments: segments.length});
 
         console.log('Book segments saved successfully.');
 
         return {
             success: true,
-            data: { segmentsCreated: segments.length}
+            data: {segmentsCreated: segments.length}
         }
     } catch (e) {
         console.error('Error saving book segments', e);
@@ -189,10 +189,10 @@ export const searchBookSegments = async (bookId: string, query: string, limit: n
         try {
             segments = await BookSegment.find({
                 bookId: bookObjectId,
-                $text: { $search: query },
+                $text: {$search: query},
             })
                 .select('_id bookId content segmentIndex pageNumber wordCount')
-                .sort({ score: { $meta: 'textScore' } })
+                .sort({score: {$meta: 'textScore'}})
                 .limit(limit)
                 .lean();
         } catch {
@@ -207,10 +207,10 @@ export const searchBookSegments = async (bookId: string, query: string, limit: n
 
             segments = await BookSegment.find({
                 bookId: bookObjectId,
-                content: { $regex: pattern, $options: 'i' },
+                content: {$regex: pattern, $options: 'i'},
             })
                 .select('_id bookId content segmentIndex pageNumber wordCount')
-                .sort({ segmentIndex: 1 })
+                .sort({segmentIndex: 1})
                 .limit(limit)
                 .lean();
         }
